@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>생산계획 관리 시스템 (MES)</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <!-- 연결 설정 모달 -->
+    <div id="connectionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔧 시스템 연결 설정</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="githubToken">GitHub Personal Access Token</label>
+                    <input type="password" id="githubToken" class="form-control" 
+                           placeholder="github_pat_11BTDBDJI0XAnJbWaVyaPC_..." 
+                           value="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">
+                    <small class="form-text">GitHub > Settings > Developer settings에서 생성</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="githubRepo">GitHub 저장소</label>
+                    <input type="text" id="githubRepo" class="form-control" 
+                           placeholder="username/repository" value="healthyon/mes" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="supabaseUrl">Supabase URL</label>
+                    <input type="text" id="supabaseUrl" class="form-control" 
+                           placeholder="Supabase 프로젝트 URL" 
+                           value="https://kyspwjebzbozuzhgngxm.supabase.co" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="supabaseKey">Supabase Anon Key</label>
+                    <input type="password" id="supabaseKey" class="form-control" 
+                           placeholder="Supabase Anon Key"
+                           value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5c3B3amViemJvenV6aGduZ3htIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3MTk0MTUsImV4cCI6MjA2NDI5NTQxNX0.10iosLA08Q__Y7E6aJgtOWt5_AEYS783kHxSSXsf9Po" readonly>
+                </div>
+                
+                <div class="connection-status" id="connectionStatus">
+                    <div class="status-item">
+                        <span class="status-label">GitHub:</span>
+                        <span class="status--info" id="githubStatus">연결 대기</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Supabase:</span>
+                        <span class="status--info" id="supabaseStatus">연결 대기</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="connectButton" class="btn btn--primary">🔗 연결하기</button>
+                <button id="skipConnection" class="btn btn--secondary">건너뛰기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 메인 애플리케이션 -->
+    <div id="mainApp" class="container hidden">
+        <header class="header">
+            <h1>🏭 생산계획 관리 시스템</h1>
+            <div class="header-controls">
+                <button id="saveButton" class="btn btn--primary">💾 저장</button>
+                <div class="connection-indicator">
+                    <span id="connectionIndicator" class="status--success">🟢 온라인</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- 생산계획 등록 -->
+        <section class="planning-section card">
+            <div class="card__header">
+                <h2>📝 새 생산계획 등록</h2>
+                <button id="addPlanButton" class="btn btn--primary">+ 새 계획</button>
+            </div>
+            <div class="card__body">
+                <form id="planForm" class="plan-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="customer">고객사</label>
+                            <input type="text" id="customer" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="productId">제조번호</label>
+                            <input type="text" id="productId" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="productName">제품명</label>
+                            <input type="text" id="productName" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="quantity">수주량 (EA)</label>
+                            <input type="text" id="quantity" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="processLine">공정라인</label>
+                            <select id="processLine" class="form-control" required>
+                                <option value="">선택하세요</option>
+                                <option value="PTP1">PTP1</option>
+                                <option value="PTP2">PTP2</option>
+                                <option value="분말스틱1">분말스틱1</option>
+                                <option value="분말스틱2">분말스틱2</option>
+                                <option value="분말스틱3">분말스틱3</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="startDate">시작일</label>
+                            <input type="date" id="startDate" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="endDate">완료일</label>
+                            <input type="date" id="endDate" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <button type="submit" class="btn btn--primary btn--full-width">📋 계획 등록</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- 생산계획 달력 -->
+        <section class="calendar-section card">
+            <div class="card__header">
+                <h2>📅 생산계획 달력</h2>
+                <div class="calendar-controls">
+                    <button id="prevWeek" class="btn btn--secondary">◀ 이전</button>
+                    <span id="currentWeek">2025년 6월 1주</span>
+                    <button id="nextWeek" class="btn btn--secondary">다음 ▶</button>
+                </div>
+            </div>
+            <div class="card__body">
+                <!-- 공정라인 범례 -->
+                <div class="process-legend">
+                    <div class="legend-item" data-process="PTP1">
+                        <div class="legend-color" style="background-color: #6c63ff;"></div>
+                        <span>PTP1</span>
+                    </div>
+                    <div class="legend-item" data-process="PTP2">
+                        <div class="legend-color" style="background-color: #4CAF50;"></div>
+                        <span>PTP2</span>
+                    </div>
+                    <div class="legend-item" data-process="분말스틱1">
+                        <div class="legend-color" style="background-color: #FF9800;"></div>
+                        <span>분말스틱1</span>
+                    </div>
+                    <div class="legend-item" data-process="분말스틱2">
+                        <div class="legend-color" style="background-color: #E91E63;"></div>
+                        <span>분말스틱2</span>
+                    </div>
+                    <div class="legend-item" data-process="분말스틱3">
+                        <div class="legend-color" style="background-color: #9C27B0;"></div>
+                        <span>분말스틱3</span>
+                    </div>
+                </div>
+                
+                <!-- 간트차트 달력 -->
+                <div id="ganttChart" class="gantt-chart"></div>
+            </div>
+        </section>
+
+        <!-- 계획 목록 -->
+        <section class="plans-section card">
+            <div class="card__header">
+                <h2>📋 생산계획 목록</h2>
+                <span id="planCount" class="plan-count">총 0개</span>
+            </div>
+            <div class="card__body">
+                <div class="planning-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>고객사</th>
+                                <th>제조번호</th>
+                                <th>제품명</th>
+                                <th>수주량</th>
+                                <th>공정라인</th>
+                                <th>시작일</th>
+                                <th>완료일</th>
+                                <th>작업</th>
+                            </tr>
+                        </thead>
+                        <tbody id="planningTableBody">
+                            <tr>
+                                <td colspan="8" class="no-data">등록된 생산계획이 없습니다.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- 토스트 알림 -->
+    <div id="toast" class="toast">
+        <div id="toastMessage"></div>
+    </div>
+
+    <!-- 저장 상태 표시 -->
+    <div id="saveStatus" class="save-status">
+        <span id="saveStatusText">자동저장 활성화</span>
+        <div class="save-progress"></div>
+    </div>
+
+    <!-- 툴팁 -->
+    <div id="tooltip" class="tooltip"></div>
+
+    <!-- 스크립트 -->
+    <script src="app.js"></script>
+</body>
+</html>
