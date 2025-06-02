@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>생산계획 관리 시스템</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <header class="header">
+            <h1>📊 생산계획 관리 시스템</h1>
+            <div class="connection-status">
+                <div class="status-item" id="supabaseStatus">
+                    <span class="status-dot"></span>
+                    <span>Supabase</span>
+                </div>
+                <div class="status-item" id="saveStatus">
+                    <span class="status-dot"></span>
+                    <span>저장상태</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- 생산계획 등록 폼 -->
+        <div class="card">
+            <div class="card__header">
+                <h2>📝 새 생산계획 등록</h2>
+                <div class="form-actions">
+                    <button type="button" class="btn btn--small btn--secondary" id="saveButton">
+                        💾 수동 저장
+                    </button>
+                </div>
+            </div>
+            <div class="card__body">
+                <form id="productionForm" class="production-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="customer" class="form-label">고객사</label>
+                            <input type="text" id="customer" class="form-control" placeholder="고객사명을 입력하세요">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="manufactureNumber" class="form-label">제조번호</label>
+                            <input type="text" id="manufactureNumber" class="form-control" placeholder="제조번호를 입력하세요">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="productName" class="form-label">제품명</label>
+                            <input type="text" id="productName" class="form-control" placeholder="제품명을 입력하세요">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="orderQuantity" class="form-label">수주량 (EA)</label>
+                            <input type="text" id="orderQuantity" class="form-control" placeholder="수주량을 입력하세요">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="processLine" class="form-label">공정라인</label>
+                            <select id="processLine" class="form-control">
+                                <option value="">공정라인을 선택하세요</option>
+                                <option value="PTP1">PTP1</option>
+                                <option value="PTP2">PTP2</option>
+                                <option value="분말스틱1">분말스틱1</option>
+                                <option value="분말스틱2">분말스틱2</option>
+                                <option value="분말스틱3">분말스틱3</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="startDate" class="form-label">시작일</label>
+                            <input type="date" id="startDate" class="form-control">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="endDate" class="form-label">완료일</label>
+                            <input type="date" id="endDate" class="form-control">
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn--primary">
+                            ✅ 계획 등록
+                        </button>
+                        <button type="button" class="btn btn--secondary" id="cancelEdit" style="display: none;">
+                            ❌ 수정 취소
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 생산 달력 -->
+        <div class="card">
+            <div class="card__header">
+                <h2>📅 생산 달력</h2>
+                <div class="calendar-controls">
+                    <div class="view-toggle">
+                        <button class="btn btn--small btn--primary" id="monthViewBtn">월별</button>
+                        <button class="btn btn--small btn--secondary" id="weekViewBtn">주별</button>
+                    </div>
+                    <div class="calendar-nav">
+                        <button class="btn btn--icon btn--secondary" id="prevMonth">
+                            <span class="btn__icon">◀</span>
+                        </button>
+                        <span id="currentMonthDisplay" class="text-center"></span>
+                        <button class="btn btn--icon btn--secondary" id="nextMonth">
+                            <span class="btn__icon">▶</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card__body">
+                <div id="productionCalendar" class="production-calendar"></div>
+            </div>
+        </div>
+
+        <!-- 생산계획 목록 -->
+        <div class="card">
+            <div class="card__header">
+                <h2>📋 생산계획 목록</h2>
+            </div>
+            <div class="card__body">
+                <div class="table-responsive">
+                    <table class="production-table">
+                        <thead>
+                            <tr>
+                                <th>고객사</th>
+                                <th>제조번호</th>
+                                <th>제품명</th>
+                                <th>수주량</th>
+                                <th>공정라인</th>
+                                <th>시작일</th>
+                                <th>완료일</th>
+                                <th>작업</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productionTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 삭제 확인 모달 -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚠️ 삭제 확인</h3>
+            </div>
+            <div class="modal-body">
+                <p>선택한 생산계획을 삭제하시겠습니까?</p>
+                <p class="text-small">이 작업은 되돌릴 수 없습니다.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn--danger" id="confirmDelete">삭제</button>
+                <button class="btn btn--secondary" id="cancelDelete">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 컨테이너 -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
